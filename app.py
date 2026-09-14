@@ -56,7 +56,7 @@ if st.button("معالجة المستندات وفهرستها"):
       )
       splits = text_splitter.split_documents(docs)
 
-      embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+      embeddings = GoogleGenerativeAIEmbeddings(model="text-embedding-004")
       vectorstore = Chroma.from_documents(
           documents=splits, embedding=embeddings, persist_directory=DB_DIR
       )
@@ -69,7 +69,7 @@ query = st.text_input("اكتب سؤالك هنا (مثال: What are the teleme
 if query:
   if os.path.exists(DB_DIR) and os.listdir(DB_DIR):
     with st.spinner("جاري البحث وتوليد الإجابة الحية..."):
-      embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+     embeddings = GoogleGenerativeAIEmbeddings(model="text-embedding-004")
       vectorstore = Chroma(
           persist_directory=DB_DIR, embedding_function=embeddings
       )
