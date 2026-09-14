@@ -1,10 +1,7 @@
 import os
 import streamlit as st
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.document_loaders import DirectoryLoader, PyPDFLoader
 from langchain_community.vectorstores import Chroma
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import (
     ChatGoogleGenerativeAI,
     GoogleGenerativeAIEmbeddings,
@@ -76,35 +73,38 @@ if query:
       vectorstore = Chroma(
           persist_directory=DB_DIR, embedding_function=embeddings
       )
-      retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-      # استخدام نموذج Gemini الحديث
+      # استرجاع أقرب المقاطع المطابقة للسؤال
+      retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+      relevant_docs = retriever.invoke(query)
+
+      # دمج النصوص المسترجعة في سياق موحد
+      context_text = "\n\n".join([doc.page_content for doc in relevant_docs])
+
+      # تجهيز البرومبت وإرساله لنموذج Gemini مباشرة
       llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.3)
 
-      # بناء برومبت مخصص واحترافي للشركات
-      system_prompt = (
-          "أنت مساعد هندسي ذكي ومحترف لتحليل وثائق الفضاء والطيران."
-          "اعتمد حصرياً على السياق المسترجع أدناه للإجابة على السؤال بدقة تقنية عالية."
-          "إذا لمא تكن تعرف الإجابة، قل لا أعرف.\n\n"
-          "السياق:\n{context}"
-      )
+      prompt = f"""
+            أنت مساعد هندسي ذكي ومحترف لتحليل وثائق الفضاء والطيران.
+            اعتمد حصرياً على السياق التقني المسترجع أدناه للإجابة على السؤال بدقة عالية.
+            إذا لم تكن الإجابة موجودة في السياق، قل "لا توجد معلومات كافية في المستندات للإجابة".
 
-      prompt = ChatPromptTemplate.from_messages([
-          ("system", system_prompt),
-          ("human", "{input}"),
-      ])
+            السياق:
+            {context_text}
 
-      # إنشاء سلسلة الإجابة الحديثة (LCEL)
-      question_answer_chain = create_stuff_documents_chain(llm, prompt)
-      rag_chain = create_retrieval_chain(retriever, question_answer_chain)
+            السؤال:
+            {query}
 
-      response = rag_chain.invoke({"input": query})
+            الإجابة الاحترافية:
+            """
+
+      response = llm.invoke(prompt)
 
       st.markdown("### الإجابة:")
-      st.write(response["answer"])
+      st.write(response.content)
 
       with st.expander("عرض المقاطع المستخدمة من المستندات (Context)"):
-        for i, doc in enumerate(response["context"]):
+        for i, doc in enumerate(relevant_docs):
           st.markdown(f"**المقطع {i+1}:**")
           st.write(doc.page_content)
   else:
