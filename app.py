@@ -64,12 +64,14 @@ if st.button("معالجة المستندات وفهرستها"):
 
 # قسم محادثة المستخدم والسؤال والجواب
 st.subheader("اسأل المستندات التقنية")
-query = st.text_input("اكتب سؤالك هنا (مثال: What are the telemetry requirements؟)")
+query = st.text_input(
+    "اكتب سؤالك هنا (مثال: What are the telemetry requirements؟)"
+)
 
 if query:
   if os.path.exists(DB_DIR) and os.listdir(DB_DIR):
     with st.spinner("جاري البحث وتوليد الإجابة الحية..."):
-     embeddings = GoogleGenerativeAIEmbeddings(model="text-embedding-004")
+      embeddings = GoogleGenerativeAIEmbeddings(model="text-embedding-004")
       vectorstore = Chroma(
           persist_directory=DB_DIR, embedding_function=embeddings
       )
@@ -85,18 +87,18 @@ if query:
       llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.3)
 
       prompt = f"""
-            أنت مساعد هندسي ذكي ومحترف لتحليل وثائق الفضاء والطيران.
-            اعتمد حصرياً على السياق التقني المسترجع أدناه للإجابة على السؤال بدقة عالية.
-            إذا لم تكن الإجابة موجودة في السياق، قل "لا توجد معلومات كافية في المستندات للإجابة".
+أنت مساعد هندسي ذكي ومحترف لتحليل وثائق الفضاء والطيران.
+اعتمد حصرياً على السياق التقني المسترجع أدناه للإجابة على السؤال بدقة عالية.
+إذا لم تكن الإجابة موجودة في السياق، قل "لا توجد معلومات كافية في المستندات للإجابة".
 
-            السياق:
-            {context_text}
+السياق:
+{context_text}
 
-            السؤال:
-            {query}
+السؤال:
+{query}
 
-            الإجابة الاحترافية:
-            """
+الإجابة الاحترافية:
+"""
 
       response = llm.invoke(prompt)
 
