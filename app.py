@@ -1,8 +1,10 @@
 import os
 import streamlit as st
-from langchain.chains import RetrievalQA
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.document_loaders import DirectoryLoader, PyPDFLoader
 from langchain_community.vectorstores import Chroma
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import (
     ChatGoogleGenerativeAI,
     GoogleGenerativeAIEmbeddings,
@@ -10,15 +12,21 @@ from langchain_google_genai import (
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # إعدادات الواجهة المؤسسية
-st.set_page_config(page_title="Enterprise Space AI Assistant", layout="wide")
+st.set_page_config(
+    page_title="Enterprise Space AI Assistant", layout="wide"
+)
 st.title("🚀 Enterprise AI Assistant for Space Documentation")
-st.markdown("مساعد ذكي مؤمن للبحث وتحليل الوثائق الهندسية والفضائية للشركات.")
+st.markdown(
+    "مساعد ذكي ومؤمن للبحث وتحليل الوثائق الهندسية والفضائية للشركات."
+)
 
 # التحقق من مفتاح الـ API الآمن من إعدادات السيرفر (Secrets)
 if "GEMINI_API_KEY" in st.secrets:
   os.environ["GOOGLE_API_KEY"] = st.secrets["GEMINI_API_KEY"]
 else:
-  st.error("خطأ أمني: مفتاح GEMINI_API_KEY غير مُعد في إعدادات المنصة (Secrets).")
+  st.error(
+      "خطأ أمني: مفتاح GEMINI_API_KEY غير مُعد في إعدادات المنصة (Secrets)."
+  )
   st.stop()
 
 DATA_DIR = "./data"
@@ -63,29 +71,40 @@ query = st.text_input("اكتب سؤالك هنا (مثال: What are the teleme
 
 if query:
   if os.path.exists(DB_DIR) and os.listdir(DB_DIR):
-    with st.spinner("جاري البحث وتوليد الإجابة..."):
+    with st.spinner("جاري البحث وتوليد الإجابة الحية..."):
       embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
       vectorstore = Chroma(
           persist_directory=DB_DIR, embedding_function=embeddings
       )
       retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
+      # استخدام نموذج Gemini الحديث
       llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.3)
 
-      qa_chain = RetrievalQA.from_chain_type(
-          llm=llm,
-          chain_type="stuff",
-          retriever=retriever,
-          return_source_documents=True,
+      # بناء برومبت مخصص واحترافي للشركات
+      system_prompt = (
+          "أنت مساعد هندسي ذكي ومحترف لتحليل وثائق الفضاء والطيران."
+          "اعتمد حصرياً على السياق المسترجع أدناه للإجابة على السؤال بدقة تقنية عالية."
+          "إذا لمא تكن تعرف الإجابة، قل لا أعرف.\n\n"
+          "السياق:\n{context}"
       )
 
-      response = qa_chain.invoke({"query": query})
+      prompt = ChatPromptTemplate.from_messages([
+          ("system", system_prompt),
+          ("human", "{input}"),
+      ])
+
+      # إنشاء سلسلة الإجابة الحديثة (LCEL)
+      question_answer_chain = create_stuff_documents_chain(llm, prompt)
+      rag_chain = create_retrieval_chain(retriever, question_answer_chain)
+
+      response = rag_chain.invoke({"input": query})
 
       st.markdown("### الإجابة:")
-      st.write(response["result"])
+      st.write(response["answer"])
 
       with st.expander("عرض المقاطع المستخدمة من المستندات (Context)"):
-        for i, doc in enumerate(response["source_documents"]):
+        for i, doc in enumerate(response["context"]):
           st.markdown(f"**المقطع {i+1}:**")
           st.write(doc.page_content)
   else:
