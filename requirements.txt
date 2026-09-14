@@ -1,6 +1,7 @@
+streamlit
+google-generativeai
+pypdf
+chromadb
 langchain
 langchain-community
-langchain-text-splitters
-chromadb
-pypdf
-streamlit
+langchain-google-genai
